@@ -1,7 +1,6 @@
-version: "3"
 services:
     neo4j-metagraph:
-        image: neo4j:5.12.0
+        image: neo4j:2025-community
         container_name: neo4j
         hostname: neo4j
         ports: 
@@ -11,11 +10,17 @@ services:
         - metagraphnet
         environment:
         - NEO4J_AUTH=none
-    metagraph:
-        build: metagraph/.
-        container_name: metagraph
-        networks:
-        - metagraphnet
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:7474"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+    # metagraph:
+    #     image: ghcr.io/astral-sh/uv:0.7.19
+    #     container_name: metagraph
+    #     networks:
+    #     - metagraphnet
+    #     # command: sh -c "uv pip install"
 networks:
     metagraphnet:
         driver: bridge
