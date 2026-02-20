@@ -267,7 +267,7 @@ def getCollectionMetadata(session, collection_id, dashboards: bool = False) -> d
     if dashboards:
         item_url = f"{host}/api/collection/{collection_id}/items?models=dashboard"
     else:
-        item_url = f"{host}/api/collection/{collection_id}/items?models=dataset&models=card"
+        item_url = f"{host}/api/collection/{collection_id}/items?models=dataset&models=card&show_dashboard_questions=true"
     
     return _make_api_request(session, item_url, f"fetching collection metadata", str(collection_id))
 
