@@ -1113,7 +1113,7 @@ def cypher(fields: bool = False, skip_archived: bool = True, database_list: str 
     parsed_database_list = [int(e) if e.isdigit() else e for e in database_list.split(',') if e.strip()]
     metabase_session = metabaseAuth()
     try:
-        with open('metadata.cypher', 'w') as writer:
+        with open('metadata.cypher', 'w', encoding='utf-8') as writer:
             writeDatabases(metabase_session, 'file', writer, fields, parsed_database_list)
             writeCollectionsAndCards(metabase_session, 'file', writer, skip_archived, parsed_database_list)
             writeDashboards(metabase_session, 'file', writer, skip_archived)
@@ -1151,7 +1151,7 @@ def database(fields: bool = False, database_list: str = ""):
     parsed_database_list = [int(e) if e.isdigit() else e for e in database_list.split(',') if e.strip()]
     metabase_session = metabaseAuth()
     try:
-        with open('metadata.cypher', 'w') as writer:
+        with open('metadata.cypher', 'w', encoding='utf-8') as writer:
             writeDatabases(metabase_session, 'file', writer, fields, parsed_database_list)
     except Exception as e:
         print(f"Error during database export: {e}")

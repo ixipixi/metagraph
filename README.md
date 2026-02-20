@@ -7,7 +7,7 @@ An admin's tool to get quick information about your instance entities like datab
 ## How to run
 
 1) install Python
-2) install dependencies with pip3 install -r metagraph/requirements.txt
+2) install dependencies with pip install -e .
 3) configure the environment variables: user & password, or session_cookie in case you use sso, and host
 4) run python metagraph/main.py cypher
 
