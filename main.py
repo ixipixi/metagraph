@@ -274,10 +274,12 @@ def getCollectionMetadata(session, collection_id, dashboards: bool = False) -> d
 def getCollectionsMetadata(session, skip_archived: bool) -> list:
     """
     Retrieves metadata for all collections in the Metabase instance.
+    When skip_archived is False, also includes collection id 1 (Trash) so
+    archived dashboards and cards can be fetched.
     
     Args:
         session: The authenticated Metabase session object
-        skip_archived: If True, archived collections will be excluded from results
+        skip_archived: If False, collection 1 (Trash) is included in the list
     
     Returns:
         list: A list of dictionaries containing collection metadata
@@ -286,14 +288,15 @@ def getCollectionsMetadata(session, skip_archived: bool) -> list:
     response_data = _make_api_request(session, collections_url, "fetching collections metadata")
     
     for collection in response_data:
-        if skip_archived and collection.get('archived', False):
-            continue
         slug = 'root' if collection['id'] == 'root' else collection['slug']
         collections.append({
-            'id': collection['id'], 
-            'name': collection['name'], 
+            'id': collection['id'],
+            'name': collection['name'],
             'slug': slug
         })
+    
+    if not skip_archived:
+        collections.append({'id': 1, 'name': 'Trash', 'slug': 'trash'})
     
     return collections
 
@@ -673,15 +676,12 @@ def _should_skip_item(item: dict, skip_archived: bool, database_list: list | Non
     
     Args:
         item: The item to check
-        skip_archived: Whether to skip archived items
+        skip_archived: Unused (kept for backward compatibility)
         database_list: List of allowed database IDs
     
     Returns:
         bool: True if the item should be skipped
     """
-    if skip_archived and item.get('archived', False):
-        return True
-    
     if database_list and item.get('database') not in database_list:
         return True
     
