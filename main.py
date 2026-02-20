@@ -539,12 +539,21 @@ def getSourcesFromCard(session, id:int) -> dict:
         else:
             card_sources = _process_gui_query(session, id, card_metadata)
 
+        # Use top-level collection_id for current location (e.g. 1 = Trash when archived)
+        collection_id = card_metadata.get('collection_id') or card_metadata.get('collection', {}).get('id')
+        if collection_id == 1:
+            collection_slug = 'trash'
+        elif collection_id == 'root':
+            collection_slug = 'root'
+        else:
+            collection_slug = card_metadata.get('collection', {}).get('slug', 'root')
+
         return {
             'card_sources': _deduplicateSources(card_sources),
             'card_id': str(card_metadata['id']),
             'database': dataset_query.get('database'),
             'card_name': card_metadata.get('name', f'Untitled Card {id}'),
-            'collection_slug': 'root' if card_metadata.get('collection', {}).get('id') == 'root' else card_metadata.get('collection', {}).get('slug', 'root'),
+            'collection_slug': collection_slug,
             'archived': card_metadata.get('archived', False)
         }
     except Exception as e:
