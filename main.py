@@ -430,12 +430,41 @@ def _process_native_query(session, card_id, dataset_query):
         
     return sources
 
+def _extract_source_cards_from_stages(dataset_query: dict) -> list:
+    """
+    Extract all source-card IDs from notebook/MBQL dataset_query.stages and nested joins.
+    Notebook-style questions use stages[].source-card (integer) instead of source-table "card__id".
+    Supports both "source-card" and "source_card" keys.
+    """
+    ids = []
+
+    def collect_from_stage(stage: dict) -> None:
+        if not isinstance(stage, dict):
+            return
+        cid = stage.get("source-card") or stage.get("source_card")
+        if cid is not None and isinstance(cid, int):
+            ids.append(cid)
+        for join in stage.get("joins") or []:
+            if not isinstance(join, dict):
+                continue
+            cid = join.get("source-card") or join.get("source_card")
+            if cid is not None and isinstance(cid, int):
+                ids.append(cid)
+            for nested in join.get("stages") or []:
+                collect_from_stage(nested)
+
+    for stage in dataset_query.get("stages") or []:
+        collect_from_stage(stage)
+
+    return list(dict.fromkeys(ids))  # preserve order, dedupe
+
+
 def _process_gui_query(session, card_id, card_metadata):
     """
     Processes a GUI-based query from a card to extract source dependencies.
     
-    This helper function handles questions created via the Metabase query builder,
-    including those that use other cards as their source.
+    Handles both legacy (source-table "card__id") and notebook/MBQL (stages[].source-card)
+    questions built on other questions.
     
     Args:
         session: The authenticated Metabase session object.
@@ -446,18 +475,23 @@ def _process_gui_query(session, card_id, card_metadata):
         list: A list of source dependency dictionaries.
     """
     sources = []
+    dataset_query = card_metadata.get("dataset_query") or {}
+
+    # Legacy: source-table with string "card__<id>"
     gui_sources = key_finder(card_metadata, 'source-table')
     for source in gui_sources:
         source_table = source.get('source-table')
-        sources.append(source) # Add the direct source
-        
-        # If the source is another card, resolve its dependencies recursively
+        sources.append(source)
         if isinstance(source_table, str) and source_table.startswith('card__'):
             try:
-                referenced_card_id = int(source_table.replace('card__', ''))
-                sources.extend(_resolveCardDependencies(session, referenced_card_id))
+                int(source_table.replace('card__', ''))  # validate format
             except (ValueError, TypeError) as e:
                 print(f"Invalid card ID format in GUI source '{source_table}' for card {card_id}: {e}")
+
+    # Notebook/MBQL: stages[].source-card (integer) — add card link only (no transitive tables)
+    for ref_id in _extract_source_cards_from_stages(dataset_query):
+        sources.append({'source-table': f'card__{ref_id}'})
+
     return sources
 
 def getSourcesFromCard(session, id:int) -> dict:
@@ -665,8 +699,12 @@ def _create_cypher_relationship(from_node: str, to_node: str, relationship: str,
     from_props_str = ', '.join([f"{k}:'{v}'" for k, v in from_props.items()])
     to_props_str = ', '.join([f"{k}:'{v}'" for k, v in to_props.items()])
     
-    match_stmt = f"MATCH (a_{from_node.lower()}:{from_node} {{{from_props_str}}}), (a_{to_node.lower()}:{to_node} {{{to_props_str}}})\n"
-    create_stmt = f"CREATE (a_{from_node.lower()})-[:{relationship}]->(a_{to_node.lower()})\n"
+    # Use distinct variable names when both nodes are the same type (e.g. Card->Card)
+    from_var = f"a_{from_node.lower()}_from" if from_node == to_node else f"a_{from_node.lower()}"
+    to_var = f"a_{to_node.lower()}_to" if from_node == to_node else f"a_{to_node.lower()}"
+    
+    match_stmt = f"MATCH ({from_var}:{from_node} {{{from_props_str}}}), ({to_var}:{to_node} {{{to_props_str}}})\n"
+    create_stmt = f"CREATE ({from_var})-[:{relationship}]->({to_var})\n"
     
     return match_stmt + create_stmt
 
