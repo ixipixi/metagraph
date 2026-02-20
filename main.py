@@ -479,7 +479,7 @@ def getSourcesFromCard(session, id:int) -> dict:
     """
     default_card_info = {
         "card_name": 'Corrupted or inaccessible card', "card_id": str(id),
-        'collection_slug': 'root', 'card_sources': [], 'archived': True
+        'collection_slug': 'unknown', 'card_sources': [], 'archived': True
     }
     try:
         response = session.get(f"{card_url}/{id}", verify=False)
